@@ -3,13 +3,21 @@ const bodyParser = require('body-parser');
 const cors = require("cors");
 const cookieParser = require('cookie-parser');
 var mysql = require('mysql2');
-const csurf = require('csurf');
+const AWS = require('aws-sdk');
+ 
+const sns = new AWS.SNS({
+    region:'ap-south-1',
+    accessKeyId:'AKIA42SUSLOIC4LIV5FH',
+    secretAccessKey: '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'
+});
+
+AWS.config.update({ region: 'ap-south-1' });
 
 const app = express();
 app.use(cookieParser());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cors());
-app.use(csurf({ cookie: true }));
+//app.use(csurf({ cookie: true }));
 
 const conn = mysql.createConnection({
     host: 'localhost',
@@ -18,89 +26,181 @@ const conn = mysql.createConnection({
     database: 'auth'
 });
 
+const ses = new AWS.SES({
+    region:'ap-south-1',
+    accessKeyId:'AKIA42SUSLOIC4LIV5FH',
+    secretAccessKey: '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'
+})
+
+
+
 conn.connect((err)=> {
     if(err) throw err   ;
     console.log('Mysql connected...');
 });
+
 app.use(bodyParser.json());
-app.get('/csrf' ,(req,res)=> {
-    res.json({ csrfToken: req.csrfToken() });
-    
-});
 
-//Registering a user using POST
-app.post('/register' , (req,res)=>{
-    console.log(req.body);
-    const firstname = req.body.data.firstname;
-    const lastname = req.body.data.lastname;
-    const username = req.body.data.username;
-    const email = req.body.data.email;
-    const password = req.body.data.password;
-    
-    const sql = 'INSERT INTO users(firstname,lastname,username,email,password) VALUES (?,?,?,?,?)';
-    const values = [firstname,lastname,username,email,password];
-    
-    conn.query(sql, values , (error, results) => {
-        if (error) {
-          return res.status(500).json({ error });
-        }
-        res.json({ message: 'User added successfully to user table.' });
-      });
-    });
+//Registered Status of user registered with email
+app.get('/getstatus',function(req,res){
+  const email = req.body.email;
+  const getstatus_sql = 'SELECT is_registered FROM users where email =?';
+  conn.query(getstatus_sql,[email],(error,results)=>{
+    if(error){
+      throw error;
+    }
+    const status = results.map(obj => obj.is_registered);
+    console.log(status); 
+    if(status){
+      res.send('This user is registered with us!')
+    }{
+      res.send('You need to sign up')
+    }
+  })
 
+})
 
-// //Getting users using GET 
-// app.get('/register', function(req,res){
-//     res.send('Get was called');
-// })    
-
-app.post('/login', function(req,res){
-console.log(req.body.data.csrfToken );
-    if (req.csrfToken() !== req.body.data.csrfToken) {
-        res.status(403).send('CSRF token invalid');
-        return;
+app.post('/verifyotp',function(req,res){
+    const email = req.body.fdata.email;
+    const otp = req.body.fdata.otp;
+    console.log(email); 
+    console.log('req to verify otp for ' + email, 'and otp is ' + otp);
+    const get_otp_sql = 'SELECT OTP,is_registered FROM users where phone =?';
+    conn.query(get_otp_sql,[email],(error,results)=>{
+      if(error){
+        throw error;
       }
-    
-    const username = req.body.data.username;
-    const password = req.body.data.password;
-    const checkUserSql = 'SELECT * FROM users where username = ?';
-    const passwordMatch = 'SELECT password FROM users WHERE username=?';
-
-    conn.query(checkUserSql,[username],(error,results) => {
-        if(error){
-            throw error;
-        }
-        // if(results.length>0){
-        //     results.forEach((row) => {
-        //         console.log('User:', row)});
-        // }else{
-        //     console.log('user with this username does not exist in DB');
-        //     res.json({message:'User Does Not Exist',status:404});
-        // }
-    });
-
-    conn.query(passwordMatch,[username],(error,results)=>{
-        let passdb;
-        if(error){
-            throw error;
-        } 
-        if(results.length>0){
-            results.forEach((row) => {
-                passdb = row.password;
-                console.log(passdb);
-            });}
-                
-        if(passdb==password){
-            res.json({message:'Success',status:200,csrfToken: req.csrfToken()});
+     
+      const otpDB = results.map(obj => obj.OTP);
+      const isrdb = results.map(obj => obj.is_registered);
+     
+      console.log(otpDB); 
+      if(otpDB==otp){
+        res.send({message:'OTP Verified!',is_registered:isrdb});
+      }else res.send({message:'incorrect OTP!'})
+    })
+})
+app.get('/grades',function(req,res){
+  const grades = ['Grade 5','Grade 6','Grade 7','Grade 8','Grade 9','Grade 10','Grade 11','Grade 12','Graduation','Post Graduation'];
+  res.send(grades);
+  res.end();
+})
+app.post('/getotp', function(req,res){
+    const email = req.body.fdata.email;
+    console.log(email);
+    const phone = req.body.fdata.phone;
+    console.log(phone);
+    const otp = Math.floor(100000 + Math.random() * 900000);
+    if(phone){
+      
+      const checkPhoneSql = 'SELECT * FROM users where phone = ?';
+      const otp_ins_for_phone = 'UPDATE users SET OTP = ?  WHERE phone =? ';
+      var phonecheck = conn.query(checkPhoneSql,[phone],(error,results)=>{
+        if(error ){
+          throw error;
+        } if(results.length>0){
+          console.log('user exists in DB, OTP sent to Phone!');
+          const params = {
+            Message: `Your OTP is ${otp}`,
+            PhoneNumber: '+91'+phone // format with country code, e.g. '+1XXXYYYZZZZ'
+          };
+          console.log(params.Message);
+          sns.publish(params,(err,data)=>{
+            if(err){
+              console.log(err);
+            }else {
+              console.log(data);
+            }
+          });
+          conn.query(otp_ins_for_phone,[otp,phone],(err,results)=>{
+            if(err){
+              throw err;
+          }
+          res.send({message:"OTP sent to your Phone"});
+          })
         }else{
-            res.json({message:'Incorrect Password',status:400});
+          console.log('user with this username does not exist in DB');
+          const params = {
+            Message: `Your OTP is ${otp}`,
+            PhoneNumber: '+91'+phone // format with country code, e.g. '+1XXXYYYZZZZ'
+          };
+          console.log(params.Message);
+          sns.publish(params,(err,data)=>{
+            if(err){
+              console.log(err);
+            }else {
+              console.log(data);
+            }
+          });
+          const is_registered =0;
+          const phone_and_otp_ins = 'INSERT INTO users(OTP,phone,is_registered) VALUES (?,?,?) ';
+          conn.query(phone_and_otp_ins,[otp,phone,is_registered],(error,results)=>{
+              if(error){
+                  throw error;
+              }
+          })
         }
-               
+      })
+    }else if(email){ 
+
+    const checkEmailSql = 'SELECT * FROM users where email = ?';
+    const otp_ins_for_email = 'UPDATE users SET OTP = ?  WHERE email =? ';
+    var emailcheck = conn.query(checkEmailSql,[email],(error,results) => {
+      if(error){
+          throw error;
+      }
+          if(results.length>0){
+          console.log('user exists in DB , OTP sent to the email');
+          conn.query(otp_ins_for_email,[otp,email],(err,results)=>{
+            if(err){
+              throw err;
+          }
+          res.send({message:"OTP sent to your email"});
+          })
+          }else{
+          console.log('user with this username does not exist in DB');
+          const is_registered =0;
+          const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+              user: '500052763@upesalumni.upes.ac.in',
+              pass: 'Aakash1997@'
+            }
+          });
+         
+          const mailOptions = {
+            from: '500052763@upesalumni.upes.ac.in',
+            to: email,
+            subject: 'OTP for validating the user',
+            text: `Your Verification code is ${otp}`
+          };
+  
+          const email_and_otp_ins = 'INSERT INTO users(OTP,email,is_registered) VALUES (?,?,?) ';
+          conn.query(email_and_otp_ins,[otp,email,is_registered],(error,results)=>{
+              if(error){
+                  throw error;
+              }
+          })
+          transporter.sendMail(mailOptions, function(error, info){
+            if (error) {
+              console.log(error);
+            } else {
+              console.log('Email sent: ' + info.response);
+              res.send({message:'OTP sent sucessfully on your email address'})
+            }
+          });
+  
+        
+          
+         
+           }
     
+      });
 
-});
+  
+  }
    
-
+    
 
 })
 
