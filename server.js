@@ -6,9 +6,7 @@ var mysql = require('mysql2');
 const AWS = require('aws-sdk');
  
 const sns = new AWS.SNS({
-    region:'ap-south-1',
-    accessKeyId:'AKIA42SUSLOIC4LIV5FH',
-    secretAccessKey: '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'
+    
 });
 
 AWS.config.update({ region: 'ap-south-1' });
