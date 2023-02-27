@@ -4,7 +4,7 @@ const cors = require("cors");
 const cookieParser = require('cookie-parser');
 var mysql = require('mysql2');
 const AWS = require('aws-sdk');
- 
+const Sequelize = require('sequelize');
 const sns = new AWS.SNS({
     region:'ap-south-1',
     accessKeyId:'AKIA42SUSLOIC4LIV5FH',
@@ -31,7 +31,29 @@ const ses = new AWS.SES({
     accessKeyId:'AKIA42SUSLOIC4LIV5FH',
     secretAccessKey: '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'
 })
+// const sequelize = new Sequelize('auth', 'root', 'aakash', {
+//   host: 'localhost',
+//   dialect: 'mysql'
+// });
+// const User = sequelize.define('user', {
+//   username: Sequelize.STRING,
+//   email: Sequelize.STRING,
+//   password: Sequelize.STRING
+// });
 
+// sequelize.sync()
+//   .then(() => {
+//     console.log('Database and tables created!');
+//   });
+
+//   User.create({
+//     username: 'john_doe',
+//     email: 'john.doe@example.com',
+//     password: 'mypassword'
+//   })
+//   .then(user => {
+//     console.log(user.toJSON());
+//   });
 
 
 conn.connect((err)=> {
@@ -80,8 +102,25 @@ app.post('/verifyotp',function(req,res){
       }else res.send({message:'incorrect OTP!'})
     })
 })
+app.post('/adduser',function(req,res){
+  const name = req.body.fdata.name;
+  const phone = req.body.fdata.phone;
+  const grade = req.body.fdata.grade;
+  const is_registered =1;
+  const sql_name_grade = 'UPDATE users SET name =?, grade =?, is_registered=? where phone = ?';
+  conn.query(sql_name_grade,[name,grade,is_registered,phone],(err,results)=>{
+    if(err ){
+      throw err;
+    }
+   
+    if(results.affectedRows==1){
+      console.log('User Phone exists in DB, added name & gradeto the table!');
+      res.send({message:'User added Successfully'});
+}});
+})
+
 app.get('/grades',function(req,res){
-  const grades = ['Grade 5','Grade 6','Grade 7','Grade 8','Grade 9','Grade 10','Grade 11','Grade 12','Graduation','Post Graduation'];
+  const grades = [{'5-7':['Grade 5','Grade 6','Grade 7'],'8-10':['Grade 8','Grade 9','Grade 10'],'5-G':['Grade 11','Grade 12','Graduation']}];
   res.send(grades);
   res.end();
 })
