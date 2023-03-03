@@ -1,141 +1,192 @@
 const express = require("express");
 const cors = require("cors");
+const bodyParser = require("body-parser");
+var mysql = require("mysql2");
+const AWS = require("aws-sdk");
+const Sequelize = require("sequelize");
+const verifyemailandsendotp = require("./api/auth/verifyEmail");
+const verifyphoneandsendotp = require("./api/auth/verifyPhone");
+// const sns = new AWS.SNS({
+//   region:'ap-south-1',
+//   accessKeyId:'AKIA42SUSLOIC4LIV5FH',
+//   secretAccessKey: '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'
 
-var mysql = require('mysql2');
-const bodyParser = require('body-parser');
-const csurf = require('csurf');
-const cookieParser = require('cookie-parser');
+// });
 
+AWS.config.update({ region: "ap-south-1" });
 const app = express();
-const csrfProtection = csurf({
-    cookie: true
-  });   
-
 app.use(cors());
-app.use(cookieParser());
-app.use(csrfProtection);
-
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-
 const conn = mysql.createConnection({
-    host: 'localhost',
-    user: 'root',
-    password: 'aakash',
-    database: 'auth'
+  host: "localhost",
+  user: "root",
+  password: "aakash",
+  database: "auth",
 });
 
-conn.connect((err)=> {
-    if(err) throw err   ;
-    console.log('Mysql connected...');
+const ses = new AWS.SES({
+  region: "ap-south-1",
+  accessKeyId: "AKIA42SUSLOIC4LIV5FH",
+  secretAccessKey: "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",
 });
-app.use(express.static('public'));
-
-app.use(function(req,res,next){
-    res.locals.csrfToken = req.csrfToken();
-    next();
-})
-// app.get('/csrf' ,(req,res)=> {
-//     // console.log("csrf token sucessfully sent to the client " + req.csrfToken());
-//     const sql = 'INSERT INTO csrftoken(token) VALUES (?)';
-//     const values = [req.csrfToken()];
-//     conn.query(sql,values,(error,results)=>{
-//         if (error) {
-//             return res.status(500).json({ error });
-//           } 
-
-//           res.json( {csrfToken: req.csrfToken()} );
-//     })
+// const sequelize = new Sequelize('auth', 'root', 'aakash', {
+//   host: 'localhost',
+//   dialect: 'mysql'
+// });
+//
+// const User = sequelize.define('user', {
+//   username: Sequelize.STRING,
+//   email: Sequelize.STRING,
+//   password: Sequelize.STRING
 // });
 
-//Registering a user using POST
-app.post('/register' , (req,res)=>{
-    console.log(req.body);
-    const firstname = req.body.data.firstname;
-    const lastname = req.body.data.lastname;
-    const username = req.body.data.username;
-    const email = req.body.data.email;
-    const password = req.body.data.password;
-    
-    const sql = 'INSERT INTO users(firstname,lastname,username,email,password) VALUES (?,?,?,?,?)';
-    const values = [firstname,lastname,username,email,password];
-    
-    conn.query(sql, values , (error, results) => {
-        if (error) {
-          return res.status(500).json({ error });
+// sequelize.sync()
+//   .then(() => {
+//     console.log('Database and tables created!');
+//   });
+
+//   User.create({
+//     username: 'john_doe',
+//     email: 'john.doe@example.com',
+//     password: 'mypassword'
+//   })
+//   .then(user => {
+//     console.log(user.toJSON());
+//   });
+
+conn.connect((err) => {
+  if (err) throw err;
+  console.log("Mysql connected...");
+});
+
+app.use(bodyParser.json());
+
+//Registered Status of user registered with email
+app.get("/getstatus", function (req, res) {
+  const email = req.body.email;
+  const getstatus_sql = "SELECT is_registered FROM users where email =?";
+  conn.query(getstatus_sql, [email], (error, results) => {
+    if (error) {
+      throw error;
+    }
+    const status = results.map((obj) => obj.is_registered);
+    console.log(status);
+    if (status) {
+      res.send("This user is registered with us!");
+    }
+    {
+      res.send("You need to sign up");
+    }
+  });
+});
+
+app.post("/verifyotp", function (req, res) {
+  const email = req.body.fdata.email;
+  const otp = req.body.fdata.otp;
+  const phone = req.body.fdata.phone;
+  console.log(email);
+  console.log("req to verify otp for " + email, "and otp is " + otp);
+  if (email) {
+    const get_otp_sql = "SELECT OTP,is_registered FROM users where email =?";
+    conn.query(get_otp_sql, [email], (error, results) => {
+      if (error) {
+        throw error;
+      }
+
+      const otpDB = results.map((obj) => obj.OTP);
+      const isrdb = results.map((obj) => obj.is_registered);
+
+      console.log(otpDB);
+      if (otpDB == otp) {
+        res.send({ message: "OTP Verified!", is_registered: isrdb });
+      } else res.send({ message: "incorrect OTP!" });
+    });
+  } else if (phone) {
+    const get_otp_sql = "SELECT OTP,is_registered FROM users where phone =?";
+    conn.query(get_otp_sql, [phone], (error, results) => {
+      if (error) {
+        throw error;
+      }
+
+      const otpDB = results.map((obj) => obj.OTP);
+      const isrdb = results.map((obj) => obj.is_registered);
+
+      console.log(otpDB);
+      if (otpDB == otp) {
+        res.send({ message: "OTP Verified!", is_registered: isrdb });
+      } else res.send({ message: "incorrect OTP!" });
+    });
+  }
+});
+app.post("/adduser", function (req, res) {
+  const name = req.body.fdata.name;
+  const phone = req.body.fdata.phone;
+  const grade = req.body.fdata.grade;
+  const is_registered = 1;
+  const sql_name_grade =
+    "UPDATE users SET name =?, grade =?, is_registered=? where phone = ?";
+  conn.query(
+    sql_name_grade,
+    [name, grade, is_registered, phone],
+    (err, results) => {
+      if (err) {
+        throw err;
+      }
+
+      if (results.affectedRows == 1) {
+        console.log("User Phone exists in DB, added name & gradeto the table!");
+        res.send({ message: "User added Successfully" });
+      }
+    }
+  );
+});
+
+app.get("/grades", function (req, res) {
+  const grades = [
+    {
+      "5-7": ["Grade 5", "Grade 6", "Grade 7"],
+      "8-10": ["Grade 8", "Grade 9", "Grade 10"],
+      "5-G": ["Grade 11", "Grade 12", "Graduation"],
+    },
+  ];
+  res.send(grades);
+  res.end();
+});
+    app.post("/getotp", function (req, res) {
+      const email = req.body.fdata.email;
+      // console.log(email);
+      const phone = req.body.fdata.phone;
+      console.log(phone);
+      const otp = Math.floor(100000 + Math.random() * 900000);
+
+      if (phone) {
+        let verifyPhone = verifyphoneandsendotp(phone,otp);
+        if (verifyPhone === "exist") {
+          res.send({ message: "User already exists , OTP sent to your Phone" });
+        } else if (verifyPhone === "new")
+          res.send({
+            message: "User does not exist in DB , OTP still send to the Phone"
+          });
+      } 
+      
+      else if (email) {
+        let verifyemail = verifyemailandsendotp(email,otp);
+        if (verifyemail == "exist") {
+          res.send({
+            message: "User already exists , OTP sent to your email" 
+            
+          });
+        } else if (verifyemail == "new"){
+          res.send({message: "User does not exist in DB , OTP still send to the email"});
         }
-        res.json({ message: 'User added successfully to user table.' });
-      });
+        
+      } else {
+        res.send("Invalid Input of Email or Phone!");
+      }
     });
 
-
-// //Getting users using GET 
-// app.get('/register', function(req,res){
-//     res.send('Get was called');
-// })    
-
-app.post('/login',  function(req,res){
-
-    if(req.csrfToken()!==req.body._csrf){
-        return res.status(403).send("invalid csrf token");
-    }
-
-    // conn.query(checkUserSql,[username],(error,results) => {
-    //     if(error){
-    //         throw error;
-    //     }
-    //     if(results.length>0){
-    //         results.forEach((row) => {
-    //             console.log('User:', row)});
-    //     }else{
-    //         console.log('user with this username does not exist in DB');
-    //         res.json({message:'User Does Not Exist',status:404});
-    //     }
-    // });
-    // if (req.csrfToken() !== req.body.data.) {
-    //     res.status(403).send('CSRF token invalid');
-    //     return;
-    //   }
-    
-    // const token = csrfToken;
-    // const submittedToken = req.headers.get('X-CSRF-Token');
-    // console.log('Token submitted by the user is '+submittedToken);
-    // if(token === submittedToken){
-    //     console.log("Token is VALID");
-    // }else console.log("Token is INVALID");
-    
-    // const username = req.body.data.username;
-    // const password = req.body.data.password;
-    // const checkUserSql = 'SELECT * FROM users where username = ?';
-    // const passwordMatch = 'SELECT password FROM users WHERE username=?';
-
-    
-
-//     conn.query(passwordMatch,[username],(error,results)=>{
-//         let passdb;
-//         if(error){
-//             throw error;
-//         } 
-//         if(results.length>0){
-//             results.forEach((row) => {
-//                 passdb = row.password;
-//                 console.log(passdb);
-//             });}
-                
-//         if(passdb==password){
-//             res.json({message:'Success',status:200});
-//         }else{
-//             res.json({message:'Incorrect Password',status:400});
-//         }
-               
-       
-          
-// });
-   
-})
-
-app.listen(4000,()=> {
+app.listen(4000, () => {
   console.log("Server running successfully on 4000");
-
-})
+});
