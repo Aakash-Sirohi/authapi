@@ -1,6 +1,6 @@
 const nodemailer = require('nodemailer');
 
-function mailer (email, otp){
+export default function mailer (email: any, otp: any){
 
      const transporter =  nodemailer.createTransport({
         service: 'gmail',
@@ -16,7 +16,7 @@ function mailer (email, otp){
         text: `Your Verification code is ${otp}`
       };
 
-  transporter.sendMail(mailOptions, function(error, info){
+  transporter.sendMail(mailOptions, function(error: any, info: { response: string; }){
         if (error) {
           console.log(error);
         } else {

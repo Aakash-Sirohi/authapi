@@ -1,11 +1,17 @@
 {
-    "compilerOptions": {
-      "target": "es6",
-      "module": "es2022",
-      "strict": true,
-      "esModuleInterop": true
-    },
-    "include": [
-        "api/auth/**/*.ts"
-, "api/auth/mailer.mjs", "api/auth/mailer.js"      ]
-  }
+  "compilerOptions": {
+    "target": "es6",
+    "module": "commonjs",
+    "outDir": "dist",
+    "sourceMap": false,
+    "esModuleInterop": true,
+    "strict": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "declaration": true,
+    "noImplicitAny": true,
+    "allowJs": true  
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "**/*.spec.ts"]
+}

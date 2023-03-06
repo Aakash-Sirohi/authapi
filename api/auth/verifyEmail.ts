@@ -1,17 +1,17 @@
-
 const checkEmailSql = 'SELECT * FROM users where email = ?';
 const otp_ins_for_email = 'UPDATE users SET OTP = ?  WHERE email =? ';
-const mailer = require('./mailer');
+import mailer from './mailer';
 var mysql = require('mysql2');
+
 const conn = mysql.createConnection({
     host: 'localhost',
     user: 'root',
     password: 'aakash',
     database: 'auth'
 });
-function verifyemailandsendotp(email,otp){
+export default function verifyemailandsendotp(email: any,otp: number){
         let emailstatus = '';
-        conn.query(checkEmailSql,[email],(error,results) => {
+        conn.query(checkEmailSql,[email],(error: any,results: string | any[]) => {
         // If Email Exists  
         if(error){
             throw error;
@@ -20,7 +20,7 @@ function verifyemailandsendotp(email,otp){
             if(results.length>0){
                 
             mailer(email,otp);
-            conn.query(otp_ins_for_email,[otp,email],(err,results)=>{
+            conn.query(otp_ins_for_email,[otp,email],(err: any,results: any)=>{
               if(err){
                 throw err;
             }
@@ -35,7 +35,7 @@ function verifyemailandsendotp(email,otp){
       
             const email_and_otp_ins = 'INSERT INTO users(OTP,email,is_registered) VALUES (?,?,?) ';
            
-            conn.query(email_and_otp_ins,[otp,email,is_registered],(error,results)=>{
+            conn.query(email_and_otp_ins,[otp,email,is_registered],(error: any,results: any)=>{
                 if(error){
                     throw error;
                 }
@@ -48,4 +48,4 @@ function verifyemailandsendotp(email,otp){
         return emailstatus;
 }
 
- module.exports = verifyemailandsendotp ;
+
