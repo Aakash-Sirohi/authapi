@@ -12,25 +12,56 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getotp = void 0;
+exports.getotpforemail = exports.getotpforphone = void 0;
 const Users_1 = __importDefault(require("../models/Users"));
-const getotp = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const otp = Math.floor(100000 + Math.random() * 900000);
+const getotpforphone = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     Users_1.default.sync();
-    const otp = Math.floor(100000 + Math.random() * 900000);
-    console.log(req.body.fdata.phone);
     const phone = req.body.fdata.phone;
-    const existingUser = yield Users_1.default.findOne({ where: { phone } });
+    console.log(req.body);
+    const existingUser = yield Users_1.default.findOne({
+        where: {
+            phone: phone
+        }
+    });
     if (existingUser) {
-        return res.status(409).json({ error: 'A user with this phone number already exists' });
+        const updateOtp = yield Users_1.default.update({ otp: otp }, { where: { phone: phone } });
+        return res.status(200).json({ Message: 'OTP Resent to Phone!' });
     }
-    // res.status(201).json(user.get(phone));
-    try {
-        const newUser = yield Users_1.default.create({ phone });
-        return res.status(201).json(newUser);
-    }
-    catch (error) {
-        console.error(error);
-        return res.status(500).json({ error: 'Error creating user' });
+    else {
+        try {
+            const newUser = yield Users_1.default.create({ phone, otp });
+            return res.status(200).json(newUser);
+        }
+        catch (error) {
+            console.error(error);
+            return res.status(500).json({ error: 'Error creating user' });
+        }
     }
 });
-exports.getotp = getotp;
+exports.getotpforphone = getotpforphone;
+const getotpforemail = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    Users_1.default.sync();
+    const email = req.body.fdata.email;
+    const existingUser = yield Users_1.default.findOne({
+        where: {
+            email: email
+        }
+    });
+    if (existingUser) {
+        const updateOtp = yield Users_1.default.update({ otp: otp }, { where: { email: email } });
+        return res.status(200).json({ Message: 'OTP Resent to Email!' });
+    }
+    else {
+        try {
+            const newUser = yield Users_1.default.create({ email, otp });
+            console.log(newUser);
+            return res.status(200).json(newUser);
+        }
+        catch (error) {
+            console.error(error);
+            return res.status(500).json({ error: 'Error creating user' });
+        }
+    }
+});
+exports.getotpforemail = getotpforemail;

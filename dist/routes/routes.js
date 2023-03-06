@@ -24,16 +24,20 @@ router.get('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         // const data = await Users.findAll();
         console.log('tyring to send resposne');
         res.send("Table created");
-        res.status(500).json();
+        res.status(500);
     }
     catch (error) {
         console.error(error);
         res.status(500).json({ error });
     }
 }));
-router.post('/getotp', (req, res) => {
-    const { phone } = req.body.fdata.phone;
-    const otp = (0, UserCont_1.getotp)(req, res);
-    res.send({ otp });
-});
+router.post('/getotp', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const emailOrPhone = req.body.fdata;
+    if (emailOrPhone.hasOwnProperty('phone')) {
+        yield (0, UserCont_1.getotpforphone)(req, res);
+    }
+    else if (emailOrPhone.hasOwnProperty('email')) {
+        yield (0, UserCont_1.getotpforemail)(req, res);
+    }
+}));
 exports.default = router;
