@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import Users from '../models/Users';
 // import getotp from '../../api/auth/getotp';
-import { getotpforemail, getotpforphone} from '../controllers/UserCont';
+import { getotpforemail, getotpforphone, verifyemailandsendotp} from '../controllers/UserCont';
 import { request } from 'http';
 import { Message } from 'twilio/lib/twiml/MessagingResponse';
 
@@ -30,9 +30,10 @@ router.post('/getotp', async (req,res)=>{
     } else if(emailOrPhone.hasOwnProperty('email')){
         await getotpforemail(req,res);
     }
-    
-    
-   
 });
+
+router.post('/verifyotp' , async (req,res)=>{
+    await verifyemailandsendotp(req,res);
+})
 
 export default router;

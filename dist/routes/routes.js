@@ -40,4 +40,7 @@ router.post('/getotp', (req, res) => __awaiter(void 0, void 0, void 0, function*
         yield (0, UserCont_1.getotpforemail)(req, res);
     }
 }));
+router.post('/verifyotp', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    yield (0, UserCont_1.verifyemailandsendotp)(req, res);
+}));
 exports.default = router;
