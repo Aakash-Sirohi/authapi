@@ -16,6 +16,10 @@ User.init({
         autoIncrement: true,
         primaryKey: true,
     },
+    username: {
+        type: sequelize_1.DataTypes.STRING,
+        unique: true,
+    },
     email: {
         type: sequelize_1.DataTypes.STRING(255),
         unique: true,

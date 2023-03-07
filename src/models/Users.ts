@@ -18,6 +18,10 @@ class User extends Model {
         autoIncrement: true,
         primaryKey: true,
       },
+      username:{
+        type: DataTypes.STRING,
+        unique: true,
+      },
       email: {
         type: DataTypes.STRING(255),
         unique: true,
@@ -25,6 +29,9 @@ class User extends Model {
       otp: {
         type: DataTypes.INTEGER,
         
+      },
+      otp_expiry : {
+        type: DataTypes.DATE,
       },
       is_registered: {
         type: DataTypes.INTEGER,

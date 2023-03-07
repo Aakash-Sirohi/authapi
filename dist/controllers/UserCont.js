@@ -12,38 +12,63 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.verifyemailandsendotp = exports.getotpforemail = exports.getotpforphone = void 0;
+exports.verifyemailandsendotp = exports.getotpforemail = exports.getotpforusername = void 0;
 const Users_1 = __importDefault(require("../models/Users"));
 const nodemailer_1 = __importDefault(require("nodemailer"));
-const getotpforphone = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    Users_1.default.sync();
-    const otp = Math.floor(100000 + Math.random() * 900000);
-    const phone = req.body.fdata.phone;
-    console.log(req.body);
-    const existingUser = yield Users_1.default.findOne({
-        where: {
-            phone: phone
-        }
-    });
-    if (existingUser) {
-        const updateOtp = yield Users_1.default.update({ otp: otp }, { where: { phone: phone } });
-        return res.status(200).json({ Message: 'OTP Resent to Phone!' });
+const crypto_1 = __importDefault(require("crypto"));
+function validateEmailOrPhoneNumber(username) {
+    // Email pattern regex
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const phoneRegex = /^\d{10}$/;
+    // Test email against regex pattern
+    if (emailRegex.test(username)) {
+        return "email";
+    }
+    else if (phoneRegex.test(username)) {
+        return "phone";
     }
     else {
-        try {
-            const newUser = yield Users_1.default.create({ phone, otp });
-            return res.status(200).json(newUser);
+        return "invalid";
+    }
+}
+function convertToUsername(username) {
+    return crypto_1.default.createHash('sha256').update(username).digest('hex');
+}
+const getotpforusername = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    Users_1.default.sync();
+    //input username
+    const username = convertToUsername(req.body.fdata.username);
+    const otp = Math.floor(100000 + Math.random() * 900000);
+    console.log(username);
+    if (validateEmailOrPhoneNumber(req.body.fdata.username) == 'phone') {
+        const phone = req.body.fdata.username;
+        const existingUser = yield Users_1.default.findOne({
+            where: {
+                username: username,
+                phone: phone
+            }
+        });
+        if (existingUser) {
+            yield Users_1.default.update({ otp: otp }, { where: { phone: phone,
+                    username: username
+                } });
+            return res.status(200).json({ Message: 'OTP Resent to Phone!' });
         }
-        catch (error) {
-            console.error(error);
-            return res.status(500).json({ error: 'Error creating user' });
+        else {
+            try {
+                const newUser = yield Users_1.default.create({ username, phone, otp });
+                return res.status(200).json(newUser);
+            }
+            catch (error) {
+                console.error(error);
+                return res.status(500).json({ error: 'Error creating user' });
+            }
         }
     }
 });
-exports.getotpforphone = getotpforphone;
+exports.getotpforusername = getotpforusername;
 const getotpforemail = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     Users_1.default.sync();
-    const otp = Math.floor(100000 + Math.random() * 900000);
     const email = req.body.fdata.email;
     const existingUser = yield Users_1.default.findOne({
         where: {
@@ -71,33 +96,21 @@ const verifyemailandsendotp = (req, res) => __awaiter(void 0, void 0, void 0, fu
     Users_1.default.sync();
     let emailstatus = '';
     const email = req.body.fdata.email;
-    const otp = req.body.fdata.otp;
-    // If email exists in DB -> send otp using mailer and run Query
-    // Checking for email in DB
-    const emailexists = yield Users_1.default.findOne({
+    const existingUser = yield Users_1.default.findOne({
         where: {
             email: email
         }
     });
-    if (emailexists) {
+    if (existingUser) {
         mailer(email, otp);
-    }
-    const insertotpforemail = yield Users_1.default.update({ otp: otp }, { where: { email: email } });
-    if (insertotpforemail) {
-        console.log('user exists in DB , OTP sent to the email');
+        const otp_insert_for_email = yield Users_1.default.update({ otp: otp }, { where: { email: email } });
         emailstatus = 'exist';
-        console.log(emailstatus);
     }
-    // If email does not exist in DB, send otp using mailer and run query
     else {
         const is_registered = 0;
         mailer(email, otp);
-        const registeringUser = yield Users_1.default.update({ otp: otp,
-            is_registered: is_registered
-        }, { where: { email: email } });
-        console.log('User with this username does not exist in DB ,OTP sent to the email');
-        emailstatus = 'new';
-        console.log(emailstatus);
+        const email_and_otp_insert = yield Users_1.default.update({ otp: otp,
+            is_registered: is_registered }, { where: { email: email } });
     }
 });
 exports.verifyemailandsendotp = verifyemailandsendotp;

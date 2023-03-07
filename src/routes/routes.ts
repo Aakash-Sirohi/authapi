@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import Users from '../models/Users';
 // import getotp from '../../api/auth/getotp';
-import { getotpforemail, getotpforphone, verifyemailandsendotp} from '../controllers/UserCont';
+import { getotpforusername, verifyemailandsendotp} from '../controllers/UserCont';
 import { request } from 'http';
 import { Message } from 'twilio/lib/twiml/MessagingResponse';
 
@@ -15,8 +15,7 @@ router.get('/', async (req: Request, res: Response)=>{
         console.log('tyring to send resposne');
         res.send("Table created");
         res.status(500);
-        
-               
+                      
     }catch(error){
         console.error(error);
         res.status(500).json({error});
@@ -24,13 +23,9 @@ router.get('/', async (req: Request, res: Response)=>{
 })
 
 router.post('/getotp', async (req,res)=>{
-    const emailOrPhone = req.body.fdata;
-    if(emailOrPhone.hasOwnProperty('phone')){
-        await getotpforphone(req,res);
-    } else if(emailOrPhone.hasOwnProperty('email')){
-        await getotpforemail(req,res);
-    }
-});
+    const username = req.body.fdata;
+    await getotpforusername(req,res);
+    });
 
 router.post('/verifyotp' , async (req,res)=>{
     await verifyemailandsendotp(req,res);
