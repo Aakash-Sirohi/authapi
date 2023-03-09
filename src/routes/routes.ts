@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import Users from '../models/Users';
 // import getotp from '../../api/auth/getotp';
-import { getotpforusername, verifyemailandsendotp} from '../controllers/UserCont';
+import { getotpforusername, loginWithSignup, verifyOtpForUsername} from '../controllers/UserCont';
 import { request } from 'http';
 import { Message } from 'twilio/lib/twiml/MessagingResponse';
 
@@ -23,12 +23,16 @@ router.get('/', async (req: Request, res: Response)=>{
 })
 
 router.post('/getotp', async (req,res)=>{
-    const username = req.body.fdata;
+    const username = req.body.fdata.username;
     await getotpforusername(req,res);
     });
 
 router.post('/verifyotp' , async (req,res)=>{
-    await verifyemailandsendotp(req,res);
-})
+    await verifyOtpForUsername(req,res);
+});
+
+router.post('/login-with-signup', async(req,res)=>{
+    await loginWithSignup(req,res);
+});
 
 export default router;

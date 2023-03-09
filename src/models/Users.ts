@@ -2,6 +2,7 @@ import { DataTypes, Model } from 'sequelize';
 import sequelize from '../sequelize';
 
 class User extends Model {
+    [x: string]: any;
     static findOneAndUpdate(phone: any) {
       throw new Error('Method not implemented.');
     }
@@ -48,6 +49,9 @@ class User extends Model {
         type: DataTypes.STRING(255),
         
       },
+      is_verified:{
+        type:DataTypes.INTEGER
+    }
     
     },
     {

@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.verifyemailandsendotp = exports.getotpforemail = exports.getotpforusername = void 0;
+exports.loginWithSignup = exports.verifyOtpForUsername = exports.getotpforusername = void 0;
 const Users_1 = __importDefault(require("../models/Users"));
 const nodemailer_1 = __importDefault(require("nodemailer"));
 const crypto_1 = __importDefault(require("crypto"));
@@ -39,6 +39,8 @@ const getotpforusername = (req, res) => __awaiter(void 0, void 0, void 0, functi
     //input username
     const username = convertToUsername(req.body.fdata.username);
     const otp = Math.floor(100000 + Math.random() * 900000);
+    const now = new Date();
+    const otp_expiry = new Date(now.getTime() + 5 * 60000);
     console.log(username);
     if (validateEmailOrPhoneNumber(req.body.fdata.username) == 'phone') {
         const phone = req.body.fdata.username;
@@ -49,14 +51,48 @@ const getotpforusername = (req, res) => __awaiter(void 0, void 0, void 0, functi
             }
         });
         if (existingUser) {
-            yield Users_1.default.update({ otp: otp }, { where: { phone: phone,
+            yield Users_1.default.update({ otp: otp,
+                otp_expiry: otp_expiry }, { where: { phone: phone,
                     username: username
                 } });
             return res.status(200).json({ Message: 'OTP Resent to Phone!' });
         }
         else {
             try {
-                const newUser = yield Users_1.default.create({ username, phone, otp });
+                const newUser = yield Users_1.default.create({ username, phone, otp, otp_expiry });
+                const userWithoutOTP = {
+                    username: newUser.username,
+                    phone: newUser.phone,
+                    otp_expiry: otp_expiry
+                };
+                return res.status(200).json({
+                    user: userWithoutOTP
+                });
+            }
+            catch (error) {
+                console.error(error);
+                return res.status(500).json({ error: 'Error creating user' });
+            }
+        }
+    }
+    else if (validateEmailOrPhoneNumber(req.body.fdata.username) == 'email') {
+        const email = req.body.fdata.username;
+        const existingUser = yield Users_1.default.findOne({
+            where: {
+                username: username,
+                email: email
+            }
+        });
+        if (existingUser) {
+            yield Users_1.default.update({ otp: otp,
+                otp_expiry: otp_expiry }, { where: { email: email,
+                    username: username
+                } });
+            return res.status(200).json({ Message: 'OTP Resent to Phone!' });
+        }
+        else {
+            try {
+                const newUser = yield Users_1.default.create({ username, email, otp, otp_expiry });
                 return res.status(200).json(newUser);
             }
             catch (error) {
@@ -67,53 +103,27 @@ const getotpforusername = (req, res) => __awaiter(void 0, void 0, void 0, functi
     }
 });
 exports.getotpforusername = getotpforusername;
-const getotpforemail = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    Users_1.default.sync();
-    const email = req.body.fdata.email;
-    const existingUser = yield Users_1.default.findOne({
-        where: {
-            email: email
-        }
-    });
-    if (existingUser) {
-        const updateOtp = yield Users_1.default.update({ otp: otp }, { where: { email: email } });
-        return res.status(200).json({ Message: 'OTP Resent to Email!' });
-    }
-    else {
-        try {
-            const newUser = yield Users_1.default.create({ email, otp });
-            console.log(newUser);
-            return res.status(200).json(newUser);
-        }
-        catch (error) {
-            console.error(error);
-            return res.status(500).json({ error: 'Error creating user' });
-        }
-    }
-});
-exports.getotpforemail = getotpforemail;
-const verifyemailandsendotp = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const verifyOtpForUsername = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     Users_1.default.sync();
     let emailstatus = '';
-    const email = req.body.fdata.email;
+    const input_user = req.body.fdata.username;
+    const username = convertToUsername(input_user);
+    const otp = req.body.fdata.otp;
     const existingUser = yield Users_1.default.findOne({
         where: {
-            email: email
+            username: username,
+            otp: otp
         }
     });
     if (existingUser) {
-        mailer(email, otp);
-        const otp_insert_for_email = yield Users_1.default.update({ otp: otp }, { where: { email: email } });
-        emailstatus = 'exist';
+        const is_verified = 1;
+        yield Users_1.default.update({ is_verified: is_verified }, { where: { username: username } });
+        return res.status(200).json({ message: 'User Authenticated!' });
     }
-    else {
-        const is_registered = 0;
-        mailer(email, otp);
-        const email_and_otp_insert = yield Users_1.default.update({ otp: otp,
-            is_registered: is_registered }, { where: { email: email } });
-    }
+    else
+        res.status(400).json({ message: "Incorrect OTP, Unable to Authenticate User!" });
 });
-exports.verifyemailandsendotp = verifyemailandsendotp;
+exports.verifyOtpForUsername = verifyOtpForUsername;
 function mailer(email, otp) {
     const transporter = nodemailer_1.default.createTransport({
         service: 'gmail',
@@ -137,3 +147,8 @@ function mailer(email, otp) {
         }
     });
 }
+const loginWithSignup = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const vres = (0, exports.verifyOtpForUsername)(req, res);
+    console.log(vres);
+});
+exports.loginWithSignup = loginWithSignup;

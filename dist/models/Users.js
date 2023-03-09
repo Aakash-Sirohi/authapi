@@ -27,6 +27,9 @@ User.init({
     otp: {
         type: sequelize_1.DataTypes.INTEGER,
     },
+    otp_expiry: {
+        type: sequelize_1.DataTypes.DATE,
+    },
     is_registered: {
         type: sequelize_1.DataTypes.INTEGER,
     },
@@ -39,6 +42,9 @@ User.init({
     grade: {
         type: sequelize_1.DataTypes.STRING(255),
     },
+    is_verified: {
+        type: sequelize_1.DataTypes.INTEGER
+    }
 }, {
     tableName: 'users',
     sequelize: sequelize_2.default,

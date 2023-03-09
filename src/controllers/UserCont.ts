@@ -50,79 +50,72 @@ import crypto from 'crypto';
         }  else{
           try  {
             const newUser = await User.create( {username ,phone,otp, otp_expiry} );
-               
-                return res.status(200).json(newUser);
+            const userWithoutOTP = {
+              username:newUser.username,
+              phone:newUser.phone,
+              otp_expiry:otp_expiry
+            };
+                return res.status(200).json({
+                  user : userWithoutOTP
+                });
               }catch (error) {
                 console.error(error);
               return res.status(500).json({ error: 'Error creating user' });
             }
         } 
       }            
-      else (validateEmailOrPhoneNumber(req.body.fdata.username) == 'email'){
+      else if (validateEmailOrPhoneNumber(req.body.fdata.username) == 'email') {
         const email = req.body.fdata.username;
-        const existingUser = await User.findOne({ 
-          where: { 
-              username:username,
-              email: email              
-        } }); 
-        if (existingUser) {
-          await User.update(
-            { otp: otp,
-              otp_expiry:otp_expiry },
-            { where: { email: email ,
-              username: username
-            } }
-          );
-          return res.status(200).json({ Message: 'OTP Resent to Phone!' });
-        }else{
-          try  {
-            const newUser = await User.create( {username,email,otp,otp_expiry} );
-               
-                return res.status(200).json(newUser);
-              }catch (error) {
-                console.error(error);
-              return res.status(500).json({ error: 'Error creating user' });
-            }
+    const existingUser = await User.findOne({ 
+      where: { 
+          username:username,
+          email: email              
+    } }); 
+    if (existingUser) {
+      await User.update(
+        { otp: otp,
+          otp_expiry:otp_expiry },
+        { where: { email: email ,
+          username: username
+        } }
+      );
+      return res.status(200).json({ Message: 'OTP Resent to Phone!' });
+    }else{
+      try  {
+        const newUser = await User.create( {username,email,otp,otp_expiry} );
+           
+            return res.status(200).json(newUser);
+          }catch (error) {
+            console.error(error);
+          return res.status(500).json({ error: 'Error creating user' });
         }
-      } 
+    }
+      }
   }
 
-export const verifyemailandsendotp = async(req:Request, res:Response) => {
+export const verifyOtpForUsername = async(req:Request, res:Response) => {
     User.sync();
     let emailstatus = '';
-    const email = req.body.fdata.email;
-    const otp = req.bod
+    const input_user = req.body.fdata.username;
+    const username = convertToUsername(input_user);
+    const otp = req.body.fdata.otp;
     const existingUser = await User.findOne({
       where:{
-        email:email
+        username:username,
+        otp:otp
       }
     })
-
+    
     if(existingUser){
-      mailer(email,otp);
-      const otp_insert_for_email = await User.update(
-        {otp:otp},
-        {where: {email:email}}
+      const is_verified = 1;
+      await User.update(
+        {is_verified:is_verified},
+        {where :{username:username}}
       );
-      emailstatus= 'exist';
-    }else {
-      const is_registered =0;
-      mailer(email,otp);
+      return res.status(200).json({message:'User Authenticated!'})
+    } else res.status(400).json({message:"Incorrect OTP, Unable to Authenticate User!"})
 
-      const email_and_otp_insert = await User.update(
-        {otp:otp,
-        is_registered:is_registered},
-        {where:{email:email}}
-      )
-    }
-
-    
-    
 }
-
-
-
-
 
 function mailer(email: any, otp: number) {
  
@@ -150,5 +143,8 @@ function mailer(email: any, otp: number) {
   });
 }
 
-
+export const loginWithSignup = async (req:Request,res:Response) => {
+ const vres = verifyOtpForUsername(req,res);
+ console.log(vres); 
+}
 

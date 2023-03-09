@@ -32,10 +32,13 @@ router.get('/', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     }
 }));
 router.post('/getotp', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const username = req.body.fdata;
+    const username = req.body.fdata.username;
     yield (0, UserCont_1.getotpforusername)(req, res);
 }));
 router.post('/verifyotp', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    yield (0, UserCont_1.verifyemailandsendotp)(req, res);
+    yield (0, UserCont_1.verifyOtpForUsername)(req, res);
+}));
+router.post('/login-with-signup', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    yield (0, UserCont_1.loginWithSignup)(req, res);
 }));
 exports.default = router;
