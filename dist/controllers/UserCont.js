@@ -93,7 +93,12 @@ const getotpforusername = (req, res) => __awaiter(void 0, void 0, void 0, functi
         else {
             try {
                 const newUser = yield Users_1.default.create({ username, email, otp, otp_expiry });
-                return res.status(200).json(newUser);
+                const userWithoutOTP = {
+                    username: newUser.username,
+                    phone: newUser.phone,
+                    otp_expiry: otp_expiry
+                };
+                return res.status(200).json({ user: userWithoutOTP });
             }
             catch (error) {
                 console.error(error);
@@ -118,7 +123,14 @@ const verifyOtpForUsername = (req, res) => __awaiter(void 0, void 0, void 0, fun
     if (existingUser) {
         const is_verified = 1;
         yield Users_1.default.update({ is_verified: is_verified }, { where: { username: username } });
-        return res.status(200).json({ message: 'User Authenticated!' });
+        const user = yield Users_1.default.findOne({
+            where: { username },
+            attributes: ["is_registered"],
+        });
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+        return res.status(200).json({ message: 'User Authenticated!', is_registered: user.is_registered });
     }
     else
         res.status(400).json({ message: "Incorrect OTP, Unable to Authenticate User!" });

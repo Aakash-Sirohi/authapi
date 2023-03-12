@@ -4,7 +4,14 @@ import router from '../routes/routes';
 import { Where, now } from 'sequelize/types/utils';
 import nodemailer from 'nodemailer'; 
 import crypto from 'crypto';
+import session from 'express-session';
+import { app } from '../server';
 
+app.use(session({
+  secret: 'abrakadabra',
+  resave: false,
+  saveUninitialized: false
+}));
     function validateEmailOrPhoneNumber(username: string) {
       // Email pattern regex
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -83,8 +90,12 @@ import crypto from 'crypto';
     }else{
       try  {
         const newUser = await User.create( {username,email,otp,otp_expiry} );
-           
-            return res.status(200).json(newUser);
+        const userWithoutOTP = {
+          username:newUser.username,
+          phone:newUser.phone,
+          otp_expiry:otp_expiry
+        };
+            return res.status(200).json({user : userWithoutOTP});
           }catch (error) {
             console.error(error);
           return res.status(500).json({ error: 'Error creating user' });
@@ -112,7 +123,16 @@ export const verifyOtpForUsername = async(req:Request, res:Response) => {
         {is_verified:is_verified},
         {where :{username:username}}
       );
-      return res.status(200).json({message:'User Authenticated!'})
+      req.session.user = username;
+      const user = await User.findOne({
+        where: { username },
+        attributes: ["is_registered"],
+      });
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      } 
+      
+      return res.status(200).json({message:'User Authenticated!',is_registered:user.is_registered})
     } else res.status(400).json({message:"Incorrect OTP, Unable to Authenticate User!"})
 
 }
